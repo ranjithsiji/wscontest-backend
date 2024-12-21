@@ -19,15 +19,15 @@ oauth.register(
     name=config["APP_NAME"],
     client_id=config["CONSUMER_KEY"],
     client_secret=config["CONSUMER_SECRET"],
-    access_token_url="https://commons.wikimedia.org/w/rest.php/oauth2/access_token",
-    authorize_url="https://commons.wikimedia.org/w/rest.php/oauth2/authorize",
-    api_base_url="https://commons.wikimedia.org/w",
+    access_token_url="https://meta.wikimedia.org/w/rest.php/oauth2/access_token",
+    authorize_url="https://meta.wikimedia.org/w/rest.php/oauth2/authorize",
+    api_base_url="https://meta.wikimedia.org/w",
     client_kwargs={},
 )
 
 
 
-ws_contest = oauth.create_client("ws test 5")
+ws_contest = oauth.create_client("wikisourcecontestdevelopment")
 
 
 def _str(val):
@@ -58,7 +58,7 @@ def logout():
     return jsonify({"status": "logged out"})
 
 
-@app.route("/oauth-k")
+@app.route("/api/auth/mediawiki/callback")
 def authorize():
     token = ws_contest.authorize_access_token()
     if token:
@@ -95,12 +95,14 @@ def create_contest():
 
     if request.method == "POST":
         try:
+            #TODO: We need to add datavalidator using Flask-WTF
             data = request.json
             session = Session()
 
             contest = Contest(
                 name=data["name"],
-                created_by=get_current_user(),
+#                created_by=get_current_user(),
+                created_by='Ranjithsiji',
                 start_date=date.fromisoformat(data["start_date"]),
                 end_date=date.fromisoformat(data["end_date"]),
                 status=True,
@@ -111,18 +113,22 @@ def create_contest():
             session.add(contest)
 
             book_names = data.get("book_names").split("\n")
-            for book in book_names:
-                session.add(Book(name=book.split(":")[1], contest=contest))
+            if(book_names):
+                for book in book_names:
+                    if(book != ''):
+                        session.add(Book(name=book.split(":")[1], contest=contest))
 
             admins = data.get("admins").split("\n")
-            for admin_name in admins:
-                admin = (
-                    session.query(ContestAdmin).filter_by(user_name=admin_name).first()
-                )
-                if admin:
-                    admin.contests.append(contest)
-                else:
-                    session.add(ContestAdmin(user_name=admin_name, contests=[contest]))
+            if (admins):
+                for admin_name in admins:
+                    if(admin_name != ''):
+                        admin = (
+                            session.query(ContestAdmin).filter_by(user_name=admin_name).first()
+                        )
+                        if admin:
+                            admin.contests.append(contest)
+                        else:
+                            session.add(ContestAdmin(user_name=admin_name, contests=[contest]))
 
             session.commit()
 
